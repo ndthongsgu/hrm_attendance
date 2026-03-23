@@ -143,4 +143,4 @@ Thumbs.db
 *.temp
 
 # Known faces (uncomment if you want to ignore images)
-# known_faces/
+known_faces/
