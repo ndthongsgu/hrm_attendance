@@ -7,8 +7,8 @@ from api.known_face import router as known_face_router
 
 app = FastAPI()
 
-app.include_router(verify_router)
-app.include_router(known_face_router)
+app.include_router(verify_router, prefix="/api")
+app.include_router(known_face_router, prefix="/api")
 
 
 @app.get("/")

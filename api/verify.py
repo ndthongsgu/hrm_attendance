@@ -20,6 +20,6 @@ async def verify_face_endpoint(employee_id: str = Form(...), file: UploadFile = 
 
     result = verify_face(image, employee_id)
     if result:
-        return VerifyFaceResponse(status="success", employee_id=result)
+        return VerifyFaceResponse(status="success", employee_id=result, message="Face recognized")
     else:
         return VerifyFaceResponse(status="failed", message="Face not recognized")
