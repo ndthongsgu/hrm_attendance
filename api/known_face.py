@@ -1,7 +1,10 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi.responses import FileResponse
 from typing import List
-from services.known_face import add_known_face
-from schemas.add_known_face import AddKnownFaceResponse
+import os
+from services.known_face import add_known_face, get_known_faces
+from schemas.add_known_face import AddKnownFaceResponse, GetKnownFacesResponse
+from core.settings import KNOWN_FACES_DIR
 
 router = APIRouter()
 
@@ -62,3 +65,98 @@ async def add_known_face_endpoint(employee_id: str = Form(...), files: List[Uplo
         failed_uploads=failed_count,
         files_info=files_info
     )
+
+@router.get("/list/{employee_id}", response_model=GetKnownFacesResponse)
+async def get_known_faces_endpoint(employee_id: str):
+    """
+    Get list of known face images for an employee
+    
+    Parameters:
+    - employee_id: The ID of the employee
+    
+    Returns:
+    - status: 'success' if operation successful
+    - employee_id: The employee ID
+    - total_images: Total number of known face images
+    - images: List of image info with filename and URL
+    """
+    if not employee_id or not employee_id.strip():
+        raise HTTPException(status_code=400, detail="employee_id is required")
+    
+    # Get the list of known faces
+    images = get_known_faces(employee_id)
+    
+    return GetKnownFacesResponse(
+        status="success",
+        employee_id=employee_id,
+        total_images=len(images),
+        images=images
+    )
+
+@router.delete("/{employee_id}/{filename}")
+async def delete_known_face_image(employee_id: str, filename: str):
+    """
+    Delete a specific known face image for an employee
+    
+    Parameters:
+    - employee_id: The ID of the employee
+    - filename: The filename of the image to delete
+    
+    Returns:
+    - Success message
+    """
+    if not employee_id or not employee_id.strip():
+        raise HTTPException(status_code=400, detail="employee_id is required")
+    
+    if not filename or not filename.strip():
+        raise HTTPException(status_code=400, detail="filename is required")
+    
+    # Build file path
+    file_path = os.path.join(KNOWN_FACES_DIR, employee_id, filename)
+    
+    # Security check - ensure path doesn't escape known_faces directory
+    if not os.path.abspath(file_path).startswith(os.path.abspath(KNOWN_FACES_DIR)):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Check if file exists
+    if not os.path.exists(file_path) or not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    try:
+        # Delete the file
+        os.remove(file_path)
+        return {"status": "success", "message": f"Image {filename} deleted successfully", "employee_id": employee_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
+
+@router.get("/{employee_id}/{filename}")
+async def get_known_face_image(employee_id: str, filename: str):
+    """
+    Get a specific known face image for an employee
+    
+    Parameters:
+    - employee_id: The ID of the employee
+    - filename: The filename of the image
+    
+    Returns:
+    - Image file
+    """
+    if not employee_id or not employee_id.strip():
+        raise HTTPException(status_code=400, detail="employee_id is required")
+    
+    if not filename or not filename.strip():
+        raise HTTPException(status_code=400, detail="filename is required")
+    
+    # Build file path
+    file_path = os.path.join(KNOWN_FACES_DIR, employee_id, filename)
+    
+    # Security check - ensure path doesn't escape known_faces directory
+    if not os.path.abspath(file_path).startswith(os.path.abspath(KNOWN_FACES_DIR)):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Check if file exists
+    if not os.path.exists(file_path) or not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    # Return the file
+    return FileResponse(file_path, media_type="image/jpeg")
